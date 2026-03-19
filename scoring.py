@@ -1,44 +1,44 @@
-import requests
-import time
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+from data.fetch_onchain import load_cache
 from data.fetch_rsi import fetch_rsi
+import requests
 
 def get_indicator(url, key):
-    """Récupère un indicateur avec retry automatique"""
-    for i in range(3):
-        try:
-            r = requests.get(url, timeout=10)
-            if r.status_code == 200:
-                data = r.json()
-                return float(data[-1][key])
-            time.sleep(10)
-        except:
-            time.sleep(10)
+    """Garde cette fonction pour le dashboard uniquement"""
+    try:
+        r = requests.get(url, timeout=10)
+        if r.status_code == 200:
+            return float(r.json()[-1][key])
+    except:
+        pass
     return None
 
 def calculate_score():
     print("=" * 40)
     print("   BTC CYCLE BOTTOM DETECTOR")
     print("=" * 40)
-    print("Récupération des données (patiente 30s)...")
 
-    nupl    = get_indicator("https://bitcoin-data.com/v1/nupl", "nupl")
-    time.sleep(5)
-    mvrv    = get_indicator("https://bitcoin-data.com/v1/mvrv-zscore", "mvrvZscore")
-    time.sleep(5)
-    puell   = get_indicator("https://bitcoin-data.com/v1/puell-multiple", "puellMultiple")
-    time.sleep(5)
-    funding = get_indicator("https://bitcoin-data.com/v1/funding-rate", "fundingRate")
-    time.sleep(5)
-    rsi     = fetch_rsi()
+    # Charge depuis le cache local — pas d'appel API
+    cache = load_cache()
+    rsi = fetch_rsi()
+
+    nupl    = cache.get("nupl")
+    mvrv    = cache.get("mvrv")
+    puell   = cache.get("puell")
+    funding = cache.get("funding")
 
     print(f"\nNUPL          : {nupl}")
     print(f"MVRV Z-Score  : {mvrv}")
     print(f"Puell Multiple: {puell}")
     print(f"Funding Rate  : {funding}")
     print(f"RSI           : {rsi}")
+    print(f"Mis à jour le : {cache.get('last_updated')}")
 
     if not all([nupl, mvrv, puell, funding]):
-        print("\n❌ Données indisponibles, réessaie dans 5 minutes")
+        print("\n❌ Données indisponibles")
         return None
 
     nupl_score    = max(0, min(100, (nupl + 1) / 2 * 100))
